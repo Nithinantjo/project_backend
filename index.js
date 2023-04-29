@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const User = require('./Models/User');
 const Product = require('./Models/Product');
+const Noti = require('./Models/Notifications')
 
 const app = express();
 const port = 3000;
@@ -60,14 +61,14 @@ app.post('/login',async (req, res) => {
 });
 
 app.post('/addCart', async (req, res) => {
-    const { email, product_id } = req.body;
+    const { email, product } = req.body;
     const user = await User.findOne({ email });
     if (!user) {
         return res.status(404).json({ message: 'User not found' });
     }
     console.log(user);
     user.cart.push({
-        product: product_id,
+        product: product,
         amount: 1
     });
     const response = await User.updateOne(
@@ -82,19 +83,53 @@ app.post('/addCart', async (req, res) => {
     });
 });
 
-app.get('/fromCart', async (req,res) => {
+app.post('/fromCart', async (req,res) => {
     const { email } = req.body;
-    const user = await User.findOne({ email }); 
-    res.send(user.cart)
+    const user = await User.findOne({ email });
+    console.log(user);
+    let cart_items = [];
+    for(let i=0; i<user.cart.length; i++){
+        var prod_id = user.cart[i].product;
+        const prod = await Product.findOne({"name":prod_id});
+        cart_items.push({
+            product: prod,
+            count: user.cart[i].amount
+        });
+    } 
+    res.send(cart_items);
+});
 
-})
+app.post('/myorders', async (req,res) => {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    console.log(user);
+    let order_items = [];
+    for(let i=0; i<user.myorders.length; i++){
+        var prod_id = user.myorders[i].product;
+        const prod = await Product.findOne({"name":prod_id});
+        order_items.push({
+            product: prod,
+            count: user.myorders[i].amount
+        });
+    } 
+    res.send(cart_items);
+});
+
 app.post('/placeorder',async(req,res)=>{
     const{email}=req.body;
     const user = await User.findOne({ email });
     user.myorders= user.cart;
+    const noti = await Noti.create({ email: email });
+    noti.products = user.myorders;
+    user.cart=[];
     const response = await User.updateOne(
         { email: email },
-        { $set: {myorders: user.myorders} }
+        { $set: {myorders: user.myorders,
+        cart:user.cart} }
+    );
+    await Noti.updateOne(
+        {email: email},
+        {$set: {products: noti.products}}
     ).then(result => {
         res.status(200).json({ message: 'Product added to myorders' });
     })
@@ -103,32 +138,50 @@ app.post('/placeorder',async(req,res)=>{
         res.status(500).json({ message: 'Error adding product to cart' });
     });
 })
-app.post('/inc', async(req,res) => {
-    const { email,product_id } = req.body;
+app.put('/inc', async(req,res) => {
+    const { email,product } = req.body;
     try{const user = await User.findOne({ email });
-    for(let i=0; i<user.cart.length; i++){
-        if(user.cart[i].product_id === product_id){
-            user.cart[i].amount+=1;
-            break;
-        }
+    if (!user) {
+        return res.status(404).json({ message: 'User not found' });
     }
-    await user.save();}
+    const cartItem = user.cart.find(item => item.product === product);
+    if (!cartItem) {
+        return res.status(404).json({ message: 'Product not found in cart' });
+    }
+    cartItem.amount++;
+    await User.updateOne(
+        {email: email},
+        {$set: {cart: user.cart}}
+    );
+    res.status(200).json({ message: 'Count incremented successfully' });}
     catch (error){
         console.error(error);
     res.status(500).json({ message: 'Error incrementing count' });
     }
 })
-app.post('/dec', async(req, res) => {
-    const { email,product_id } = req.body;
+app.put('/dec', async(req, res) => {
+    const { email,product } = req.body;
     try{
         const user = await User.findOne({ email });
-        for(let i=0; i<user.cart.length; i++){
-            if(user.cart[i].product_id==product_id)
-                break;
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
         }
-        if(user.cart[i]>1)
-            user.cart[i].amount-=1;
+        const cartItem = user.cart.find(item => item.product === product);
+        if (!cartItem) {
+            return res.status(404).json({ message: 'Product not found in cart' });
+        }
+        if(cartItem.amount>1){
+            cartItem.amount--;
+        }
+        else{
+            let i = user.cart.indexOf(cartItem);
+            user.cart.splice(i,1);
+        }
         
+            await User.updateOne(
+                {email: email},
+                {$set: {cart: user.cart}}
+            );
     }
     catch (error){
 console.error(error);

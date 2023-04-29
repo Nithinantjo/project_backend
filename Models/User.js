@@ -24,7 +24,7 @@ const UserSchema = new mongoose.Schema({
             type: Object,
             properties: {
                 product: {
-                    type: mongoose.Schema.Types.ObjectId, ref: 'Product'
+                    type: String
                 },
                 amount: {
                     type: Number
@@ -39,7 +39,7 @@ const UserSchema = new mongoose.Schema({
             type: Object,
             properties: {
                 product: {
-                    type: mongoose.Schema.Types.ObjectId, ref: 'Product'
+                    type: String
                 },
                 amount: {
                     type: Number
