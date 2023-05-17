@@ -19,6 +19,9 @@ const ProductSchema = new mongoose.Schema({
         required: true,
         trim: true,
     },
+    carted: [
+        {type: String}
+    ]
 });
 
 module.exports = mongoose.model("Product", ProductSchema);

@@ -14,6 +14,7 @@ mongoose.connect('mongodb+srv://nithinantjo823:nithin2001@shop.k9po0z5.mongodb.n
 
 // Set up middleware to parse JSON data in the request body
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 app.post('/addProduct', async (req, res) => {
     const { name, price, amount, image } = req.body;
@@ -66,11 +67,17 @@ app.post('/addCart', async (req, res) => {
     if (!user) {
         return res.status(404).json({ message: 'User not found' });
     }
-    console.log(user);
+    var name = product;
+    const prod = await Product.findOne({name})
     user.cart.push({
         product: product,
         amount: 1
     });
+    prod.carted.push(email)
+    await Product.updateOne(
+        {name: name},
+        {$set: {carted: prod.carted}}
+    )
     const response = await User.updateOne(
         { email: email },
         { $set: {cart: user.cart} }
@@ -86,7 +93,6 @@ app.post('/addCart', async (req, res) => {
 app.post('/fromCart', async (req,res) => {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    console.log(user);
     let cart_items = [];
     for(let i=0; i<user.cart.length; i++){
         var prod_id = user.cart[i].product;
@@ -112,7 +118,7 @@ app.post('/myorders', async (req,res) => {
             count: user.myorders[i].amount
         });
     } 
-    res.send(cart_items);
+    res.send(order_items);
 });
 
 app.post('/placeorder',async(req,res)=>{
@@ -187,6 +193,58 @@ app.put('/dec', async(req, res) => {
 console.error(error);
     res.status(500).json({ message: 'Error incrementing count' });
     }    
+})
+
+app.get('/notifications', async (req,res) => {
+    try{
+        const noti = await Noti.find({}, 'email');
+        res.status(200).json(noti);
+    }
+    catch(error){
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching notifications' });
+    }
+})
+
+app.post('/eachNoti', async (req,res) => {
+    try{
+        const {email} = req.body;
+        const noti = await Noti.findOne({email});
+        let noti_prods = [];
+        for(let i=0; i<noti.products.length; i++){
+            noti_prods.push({
+                prod_name: noti.products[i].product,
+                count: noti.products[i].amount
+            })
+        }
+        res.send(noti_prods);
+    }
+    catch(err){
+        console.error(err);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+})
+
+app.get('/allproducts', async (req,res) => {
+    try{
+        const prod = await Product.find({}, 'name price image');
+        res.status(200).json(prod);
+    }
+    catch(error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching products' });   
+    }
+})
+
+app.post('/eachproduct', async (req,res) => {
+    try{const {item} = req.body;
+    var name = item;
+    var resp = await Product.findOne({name})
+    res.send(resp);}
+    catch(error){
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching products' });
+    }
 })
 // Start the server
 app.listen(port, () => {
