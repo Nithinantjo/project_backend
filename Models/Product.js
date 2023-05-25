@@ -7,7 +7,7 @@ const ProductSchema = new mongoose.Schema({
         trim: true,
     },
     price: {
-        type: Number,
+        type: String,
         required: true,
     },
     amount: {
@@ -20,7 +20,16 @@ const ProductSchema = new mongoose.Schema({
         trim: true,
     },
     carted: [
-        {type: String}
+        {type: Object,
+        properties:
+        {
+            email: {
+                type: String
+            },
+            count: {
+                type: Number
+            }
+        }}
     ]
 });
 
